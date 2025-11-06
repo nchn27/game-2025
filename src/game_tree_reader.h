@@ -125,16 +125,15 @@ std::pair<std::array<std::vector<Infoset>, 4>, std::vector<Game>> create_game_tr
 				const std::string &player = tokens[3];
 				assert(tokens[4] == "actions");
 				
-				Game &game = games[game_index];
-				game.player = std::stoi(player)-1;
+				games[game_index].player = std::stoi(player)-1;
 				
 				for(int i = 5; i < tokens.size(); i++) {
 					if(tokens[i] == "C") {
-						game.c_index = get_game_index(name + "/P" + player + ":C");
+						games[game_index].c_index = get_game_index(name + "/P" + player + ":C");
 					} else if(tokens[i] == "F") {
-						game.f_index = get_game_index(name + "/P" + player + ":F");
+						games[game_index].f_index = get_game_index(name + "/P" + player + ":F");
 					} else if(tokens[i] == "R") {
-						game.r_index = get_game_index(name + "/P" + player + ":R");
+						games[game_index].r_index = get_game_index(name + "/P" + player + ":R");
 					} else {
 						std::cerr << "Unknown action!" << std::endl;
 						exit(0);

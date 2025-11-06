@@ -3,6 +3,8 @@
 #include "game_tree_reader.h"
 #include "game.h"
 #include "random_util.h"
+#include "esmccfr.h"
+#include "output_strategy.h"
 
 void print_example_trajectories(const std::array<std::vector<Infoset>, 4> &infosets, const std::vector<Game> &games) {
 	Game g = games[0];
@@ -53,8 +55,21 @@ int main() {
 	}
 	*/
 	
-	
-
+	for(int iter = 0; iter < 100000; iter++) {
+		if(iter % 10000 == 0) {
+			std::cout << iter << std::endl;
+		}
+		
+		for(int player = 0; player < 4; player++) {
+			walkESMCCFR(infosets, games, games[0], player);
+		}
+	}
+		
+	std::cout << "saving npy's" << std::endl;
+		
+	for(int player = 0; player < 4; player++) {
+		saveNPY(player, infosets[player]);
+	}
 	
 	return 0;
 }

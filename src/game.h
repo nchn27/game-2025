@@ -4,14 +4,57 @@
 #include <vector>
 #include <utility>
 
+void normalizeReLU(double* array, int N) {
+	double sum = 0;
+	for(int i = 0; i < N; i++) {
+		sum += std::max(array[i],0.0);
+	}
+
+	if(sum <= 1e-9) {
+		for(int i = 0; i < N; i++) {
+			array[i] = 1.0/N;
+		}
+	} else {
+		for(int i = 0; i < N; i++) {
+			array[i] = std::max(array[i],0.0)/sum;
+		}
+	}
+}
+
 struct Infoset {
 	Infoset(int player, bool can_c, bool can_f, bool can_r, const std::string &name) : 
 		player(player), can_c(can_c), can_f(can_f), can_r(can_r), name(name)
-	{}
+	{
+		for(int i = 0; i < 3; i++) {
+			total_strategies[i] = 0;
+			total_regrets[i] = 0;
+		}
+	}
+	
+	void makeOutputBuffer(double *d) const {
+		double average_strategy[3];
+		for(int i = 0; i < 3; i++) {
+			average_strategy[i] = total_strategies[i];
+		}
+		normalizeReLU(average_strategy, can_c + can_f + can_r);
+		
+		int ptr = 0;
+		if(can_c) {
+			d[0] = average_strategy[ptr++];
+		}
+		if(can_f) {
+			d[1] = average_strategy[ptr++];
+		}
+		if(can_r) {
+			d[2] = average_strategy[ptr++];
+		}
+	}
 	
 	int player;
-	//regrets, strategies, etc.
 	bool can_c, can_f, can_r;
+
+	double total_strategies[3];
+	double total_regrets[3];
 	
 	std::string name;
 };
