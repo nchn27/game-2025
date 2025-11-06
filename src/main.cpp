@@ -1,4 +1,5 @@
 #include <iostream>
+#include <array>
 
 #include "game_tree_reader.h"
 #include "game.h"
@@ -55,8 +56,8 @@ int main() {
 	}
 	*/
 	
-	for(int iter = 0; iter < 100000; iter++) {
-		if(iter % 10000 == 0) {
+	for(int iter = 0; iter < 1000000; iter++) {
+		if(iter % 100000 == 0) {
 			std::cout << iter << std::endl;
 		}
 		

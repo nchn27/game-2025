@@ -1,5 +1,8 @@
 #pragma once
 
+#include <vector>
+#include <array>
+
 #include "game.h"
 
 double walkESMCCFR(std::array<std::vector<Infoset>, 4> &infosets, const std::vector<Game> &games, Game g, int trainedPlayer) {	

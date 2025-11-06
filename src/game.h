@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <utility>
+#include <array>
 
 void normalizeReLU(double* array, int N) {
 	double sum = 0;
