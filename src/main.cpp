@@ -48,29 +48,18 @@ void print_example_trajectories(const std::array<std::vector<Infoset>, 4> &infos
 }
 
 int main() {
-	auto [infosets, games] = create_game_tree();
+	auto [infosets, games] = create_game_tree(2, 3);
 
-	/*
 	for(int i = 0; i < 10; i++) {
 		print_example_trajectories(infosets, games);
 	}
-	*/
-	
-	for(int iter = 0; iter < 1000000; iter++) {
-		if(iter % 100000 == 0) {
-			std::cout << iter << std::endl;
-		}
 		
-		for(int player = 0; player < 4; player++) {
-			walkESMCCFR(infosets, games, games[0], player);
-		}
-	}
-		
+	/*
 	std::cout << "saving npy's" << std::endl;
 		
 	for(int player = 0; player < 4; player++) {
 		saveNPY(player, infosets[player]);
-	}
+	}*/
 	
 	return 0;
 }

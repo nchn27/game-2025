@@ -32,7 +32,7 @@ std::pair<std::string, std::string> separate_string_pair(const std::string &toke
 	}
 }
 
-std::pair<std::unordered_map<std::string, int>, std::vector<Infoset>> read_infosets(int player) {
+std::pair<std::unordered_map<std::string, int>, std::vector<Infoset>> read_infosets(int player, int num_strategies) {
 	std::ifstream infile("leduc-infosets/player_" + std::to_string(player+1) + "_infosets.txt");
 	if(!infile) {
 		std::cerr << "Error: could not open infosets for player " << player << std::endl;
@@ -55,20 +55,24 @@ std::pair<std::unordered_map<std::string, int>, std::vector<Infoset>> read_infos
 			if(c == 'F') can_f = true;
 			if(c == 'R') can_r = true;
 		}
-
-		name_to_index[name] = infosets.size();
-		infosets.emplace_back(player, can_c, can_f, can_r, name);
+		
+		for(int strategy_num = 0; strategy_num < num_strategies; strategy_num++) {
+			std::string name_with_strat = "/" + std::to_string(strategy_num) + "/" + name;
+		
+			name_to_index[name_with_strat] = infosets.size();
+			infosets.emplace_back(player, can_c, can_f, can_r, name_with_strat);
+		}
 	}
 	
 	return {name_to_index, infosets};
 }
 
-std::pair<std::array<std::vector<Infoset>, 4>, std::vector<Game>> create_game_tree() {
+std::pair<std::array<std::vector<Infoset>, 4>, std::vector<Game>> create_game_tree(int num_strategies_13, int num_strategies_24) {
 	std::array<std::unordered_map<std::string, int>, 4> name_to_index;
 	std::array<std::vector<Infoset>, 4> infosets;
 
 	for(int i = 0; i < 4; i++) {
-		auto p = read_infosets(i);
+		auto p = read_infosets(i, (i % 2 == 0) ? num_strategies_13 : num_strategies_24);
 		name_to_index[i] = std::move(p.first);
 		infosets[i] = std::move(p.second);
 	}
@@ -91,89 +95,115 @@ std::pair<std::array<std::vector<Infoset>, 4>, std::vector<Game>> create_game_tr
 		}
 		return name_to_index_game[name];
     };
+	
+	int root_index = get_game_index("");
+	for(int s1 = 0; s1 < num_strategies_13; s1++) {
+		for(int s2 = 0; s2 < num_strategies_24; s2++) {
+			int game_index = get_game_index("/" + std::to_string(s1) + "/" + std::to_string(s2));
+			
+			games[root_index].chance_actions.push_back(game_index);
+			games[root_index].chance_probs.push_back(1.0 / num_strategies_13 / num_strategies_24);
+		}
+	}
 
     std::string line;
     while (std::getline(infile, line)) {
 		std::vector<std::string> tokens = tokenize_line(line);
 				
         if(tokens[0] == "node") {			
-			std::string name = tokens[1];
-			if(name == "/") name = "";
+			std::string base_name = tokens[1];
+			if(base_name == "/") base_name = "";
+			
+			for(int s1 = 0; s1 < num_strategies_13; s1++) {
+				for(int s2 = 0; s2 < num_strategies_24; s2++) {
+					std::string name = "/" + std::to_string(s1) + "/" + std::to_string(s2) + base_name;
+					int game_index = get_game_index(name);
+				
+					std::string player_type = tokens[2];
+			
+					if(player_type == "chance") {
+						assert(tokens[3] == "actions");
+					
+					
+						double total_prob = 0;
 						
-			int game_index = get_game_index(name);
-			
-			std::string player_type = tokens[2];
-			
-			if(player_type == "chance") {
-				assert(tokens[3] == "actions");
-				
-				double total_prob = 0;
-				
-				for(int i = 4; i < tokens.size(); i++) {
-					auto [first, second] = separate_string_pair(tokens[i]);
-					double prob = std::stod(second);
-										
-					int next_game = get_game_index(name + "/C:" + first);
-									
-					Game &game = games[game_index];
-					game.chance_actions.push_back(next_game);
-					game.chance_probs.push_back(prob);
-					total_prob += prob;
-				}
-				assert(abs(total_prob - 1) <= 1e-3);
-			} else if(player_type == "player") {
-				const std::string &player = tokens[3];
-				assert(tokens[4] == "actions");
-				
-				games[game_index].player = std::stoi(player)-1;
-				
-				for(int i = 5; i < tokens.size(); i++) {
-					if(tokens[i] == "C") {
-						games[game_index].c_index = get_game_index(name + "/P" + player + ":C");
-					} else if(tokens[i] == "F") {
-						games[game_index].f_index = get_game_index(name + "/P" + player + ":F");
-					} else if(tokens[i] == "R") {
-						games[game_index].r_index = get_game_index(name + "/P" + player + ":R");
+						for(int i = 4; i < tokens.size(); i++) {
+							auto [first, second] = separate_string_pair(tokens[i]);
+							double prob = std::stod(second);
+												
+							int next_game = get_game_index(name + "/C:" + first);
+											
+							Game &game = games[game_index];
+							game.chance_actions.push_back(next_game);
+							game.chance_probs.push_back(prob);
+							total_prob += prob;
+						}
+						assert(abs(total_prob - 1) <= 1e-3);
+					} else if(player_type == "player") {
+						const std::string &player = tokens[3];
+						assert(tokens[4] == "actions");
+						
+						games[game_index].player = std::stoi(player)-1;
+						
+						for(int i = 5; i < tokens.size(); i++) {
+							if(tokens[i] == "C") {
+								games[game_index].c_index = get_game_index(name + "/P" + player + ":C");
+							} else if(tokens[i] == "F") {
+								games[game_index].f_index = get_game_index(name + "/P" + player + ":F");
+							} else if(tokens[i] == "R") {
+								games[game_index].r_index = get_game_index(name + "/P" + player + ":R");
+							} else {
+								std::cerr << "Unknown action!" << std::endl;
+								exit(0);
+							}
+						}
+					} else if(player_type == "leaf") {
+						assert(tokens[3] == "payoffs");
+
+						Game &game = games[game_index];
+						game.terminal = true;
+						
+						for(int i = 4; i < tokens.size(); i++) {
+							auto [first, second] = separate_string_pair(tokens[i]);
+							int player = std::stoi(first) - 1;
+							int payoff = std::stoi(second);
+							
+							game.payoffs[player] = payoff;
+						}
 					} else {
-						std::cerr << "Unknown action!" << std::endl;
+						std::cerr << "Unknown player type " << player_type << std::endl;
 						exit(0);
 					}
 				}
-			} else if(player_type == "leaf") {
-				assert(tokens[3] == "payoffs");
-
-				Game &game = games[game_index];
-				game.terminal = true;
-				
-				for(int i = 4; i < tokens.size(); i++) {
-					auto [first, second] = separate_string_pair(tokens[i]);
-					int player = std::stoi(first) - 1;
-					int payoff = std::stoi(second);
-					
-					game.payoffs[player] = payoff;
-				}
-			} else {
-				std::cerr << "Unknown player type " << player_type << std::endl;
-				exit(0);
 			}
 		} else if(tokens[0] == "infoset") {
-			std::string infoset_name = tokens[1];
+			std::string base_infoset_name = tokens[1];
+			
 			int player = -1;
-			int infoset_index = -1;
 			for(int i = 0; i < 4; i++) {
-				if(name_to_index[i].find(infoset_name) != name_to_index[i].end()) {
+				if(name_to_index[i].find("/0/" + base_infoset_name) != name_to_index[i].end()) {
 					player = i;
-					infoset_index = name_to_index[i][infoset_name];
 				}
 			}
 			assert(player != -1);
-			assert(infoset_index != -1);
 			
-			assert(tokens[2] == "nodes");
-			for(int i = 3; i < tokens.size(); i++) {
-				std::string game_name = tokens[i];
-				
-				games[get_game_index(game_name)].infoset_index = infoset_index;
+			for(int s1 = 0; s1 < num_strategies_13; s1++) {
+				for(int s2 = 0; s2 < num_strategies_24; s2++) {
+					int strategy_num = (player % 2 == 0) ? s1 : s2;
+					std::string infoset_name = "/" + std::to_string(strategy_num) + "/" + base_infoset_name;
+					
+					int infoset_index = name_to_index[player][infoset_name];
+
+					assert(infoset_index != -1);
+					
+					assert(tokens[2] == "nodes");
+					for(int i = 3; i < tokens.size(); i++) {
+						std::string base_game_name = tokens[i];
+						std::string game_name = "/" + std::to_string(s1) + "/" + std::to_string(s2) + base_game_name;
+						
+						games[get_game_index(game_name)].infoset_index = infoset_index;
+					}
+				}
 			}
 		} else {
 			std::cerr << "Unknown first token type" << std::endl;
